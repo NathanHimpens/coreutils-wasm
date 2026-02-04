@@ -1,0 +1,52 @@
+{
+  "name": "@nathanhimpens/coreutils-wasm",
+  "version": "1.0.0",
+  "description": "GNU Coreutils compiled to WebAssembly - provides WASM binaries for ls, cat, head, tail, wc and 100+ more commands",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./wasm": "./wasm/coreutils.wasm"
+  },
+  "files": [
+    "dist",
+    "wasm",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "prepublishOnly": "npm run build",
+    "test": "node test/test.js"
+  },
+  "keywords": [
+    "coreutils",
+    "wasm",
+    "webassembly",
+    "wasi",
+    "ls",
+    "cat",
+    "head",
+    "tail",
+    "wc",
+    "gnu"
+  ],
+  "author": "Nathan Himpens",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NathanHimpens/coreutils-wasm"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
