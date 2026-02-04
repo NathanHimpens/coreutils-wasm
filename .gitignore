@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+npm-package/dist/
+*.gem
+
+# Temporary files
+*.webc
+coreutils-unpacked/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+ruby-gem/spec/examples.txt
+coverage/
