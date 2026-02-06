@@ -1,41 +1,41 @@
 # frozen_string_literal: true
 
-require_relative "coreutils_wasm/version"
-require_relative "coreutils_wasm/commands"
+require_relative 'coreutils_wasm/version'
+require_relative 'coreutils_wasm/downloader'
+require_relative 'coreutils_wasm/runner'
+require_relative 'coreutils_wasm/commands'
 
-# CoreutilsWasm provides GNU coreutils WASM binaries
-#
-# This gem only provides the WASM binary. You choose how to run it
-# with your preferred WebAssembly runtime (wasmer, wasmtime, etc.)
 module CoreutilsWasm
   class Error < StandardError; end
+  class BinaryNotFound < Error; end
+  class ExecutionError < Error; end
+
+  DEFAULT_BINARY_PATH = File.join(File.dirname(__FILE__), 'coreutils_wasm', 'coreutils.wasm').freeze
 
   class << self
-    # Get the absolute path to the coreutils WASM binary
-    # @return [String] Absolute path to coreutils.wasm
-    def wasm_path
-      @wasm_path ||= File.expand_path("../wasm/coreutils.wasm", __dir__)
+    attr_writer :binary_path, :runtime
+
+    def binary_path
+      @binary_path || DEFAULT_BINARY_PATH
     end
 
-    # Get the raw WASM binary as a string of bytes
-    # @return [String] Binary string containing the WASM binary
-    def wasm_bytes
-      File.binread(wasm_path)
+    def runtime
+      @runtime || 'wasmtime'
     end
 
-    # Get the WASM file size in bytes
-    # @return [Integer] Size in bytes
-    def wasm_size
-      File.size(wasm_path)
+    def download_to_binary_path!
+      Downloader.download(to: binary_path)
     end
 
-    # Check if the WASM binary exists
-    # @return [Boolean]
-    def wasm_exists?
-      File.exist?(wasm_path)
+    def run(*args, wasm_dir: '.')
+      Runner.run(*args, wasm_dir: wasm_dir)
     end
 
-    # List of all available commands in this binary
+    def available?
+      File.exist?(binary_path)
+    end
+
+    # List of all available commands in this binary (coreutils-specific convenience)
     # @return [Array<String>]
     def commands
       Commands::ALL
