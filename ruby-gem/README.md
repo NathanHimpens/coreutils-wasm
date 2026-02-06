@@ -1,10 +1,20 @@
 # CoreutilsWasm
 
-GNU Coreutils compiled to WebAssembly.
+GNU Coreutils compiled to WebAssembly, wrapped as a Ruby gem.
 
-This gem provides the WASM binary for GNU coreutils. It includes 100+ commands like `ls`, `cat`, `head`, `tail`, `wc`, `cp`, `mv`, `rm`, etc.
+This gem downloads and runs a WASM binary containing 100+ GNU coreutils commands (`ls`, `cat`, `head`, `tail`, `wc`, `cp`, `mv`, `rm`, etc.) via a WASI runtime like [wasmtime](https://wasmtime.dev/) or [wasmer](https://wasmer.io/).
 
-**This gem only provides the WASM binary.** You choose how to run it with your preferred WebAssembly runtime.
+## Prerequisites
+
+You need a WASI-compatible runtime installed on your system. The gem defaults to `wasmtime`.
+
+```bash
+# Option 1: Install wasmtime (default)
+curl https://wasmtime.dev/install.sh -sSf | bash
+
+# Option 2: Install wasmer
+curl https://get.wasmer.io -sSfL | sh
+```
 
 ## Installation
 
@@ -14,7 +24,7 @@ Add this line to your application's Gemfile:
 gem 'coreutils-wasm'
 ```
 
-And then execute:
+Then execute:
 
 ```bash
 bundle install
@@ -28,25 +38,82 @@ gem install coreutils-wasm
 
 ## Usage
 
-### Get the WASM binary path or bytes
+### Quick start
 
 ```ruby
 require 'coreutils_wasm'
 
-# Get the file path (useful for CLI runtimes)
-wasm_path = CoreutilsWasm.wasm_path
-# => "/path/to/gems/coreutils-wasm-1.0.0/wasm/coreutils.wasm"
+# 1. Download the WASM binary (only needed once)
+CoreutilsWasm.download_to_binary_path!
 
-# Get as binary string
-wasm_bytes = CoreutilsWasm.wasm_bytes
+# 2. Run a command
+result = CoreutilsWasm.run('ls', '-la', wasm_dir: '.')
+puts result[:stdout]
+```
 
-# Get file size
-wasm_size = CoreutilsWasm.wasm_size
-# => 4705003
+### Download the binary
 
-# Check if file exists
-CoreutilsWasm.wasm_exists?
+The `.wasm` binary is not bundled with the gem. It is downloaded from GitHub Releases on first use.
+
+```ruby
+# Download to the default location (inside the gem directory)
+CoreutilsWasm.download_to_binary_path!
+
+# Check if the binary is available
+CoreutilsWasm.available?
 # => true
+```
+
+### Run commands
+
+Once the binary is downloaded, use `run` to execute any coreutils command. Arguments are passed through to the WASM binary.
+
+```ruby
+# List files
+result = CoreutilsWasm.run('ls', '-la', wasm_dir: '.')
+puts result[:stdout]
+
+# Read a file
+result = CoreutilsWasm.run('cat', 'Gemfile', wasm_dir: '.')
+puts result[:stdout]
+
+# Word count
+result = CoreutilsWasm.run('wc', '-l', 'README.md', wasm_dir: '.')
+puts result[:stdout]
+
+# Sort input (via file)
+result = CoreutilsWasm.run('sort', 'names.txt', wasm_dir: '/path/to/data')
+puts result[:stdout]
+```
+
+The `run` method returns a hash:
+
+```ruby
+{
+  stdout:  "...",   # Standard output
+  stderr:  "...",   # Standard error
+  success: true     # Whether the command succeeded
+}
+```
+
+The `wasm_dir` parameter controls which host directory is mounted into the WASI sandbox (passed as `--dir` to the runtime). It defaults to `"."`.
+
+### Configuration
+
+```ruby
+# Change the path where the .wasm binary is stored
+CoreutilsWasm.binary_path = '/opt/wasm/coreutils.wasm'
+
+# Change the WASI runtime (default: "wasmtime")
+CoreutilsWasm.runtime = 'wasmer'
+
+# Check the current binary path
+CoreutilsWasm.binary_path
+# => "/opt/wasm/coreutils.wasm"
+
+# Check the current runtime
+CoreutilsWasm.runtime
+# => "wasmer"
 ```
 
 ### List available commands
@@ -56,66 +123,33 @@ CoreutilsWasm.commands
 # => ["arch", "base32", "base64", "basename", "cat", "chmod", "cp", "ls", ...]
 ```
 
-## Running with different runtimes
-
-### With Wasmer CLI
-
-```bash
-# Install wasmer
-curl https://get.wasmer.io -sSfL | sh
-
-# Run a command
-wasmer run $(ruby -r coreutils_wasm -e "puts CoreutilsWasm.wasm_path") -- ls -la
-```
-
-### With Wasmtime CLI
-
-```bash
-# Install wasmtime
-curl https://wasmtime.dev/install.sh -sSf | bash
-
-# Run a command
-wasmtime $(ruby -r coreutils_wasm -e "puts CoreutilsWasm.wasm_path") -- ls -la
-```
-
-### With wasmer gem (Ruby runtime)
+### Error handling
 
 ```ruby
-require 'wasmer'
-require 'coreutils_wasm'
-
-# Load the WASM binary
-wasm_bytes = CoreutilsWasm.wasm_bytes
-store = Wasmer::Store.new
-module_ = Wasmer::Module.new store, wasm_bytes
-
-# Create WASI environment
-wasi_env = Wasmer::Wasi::StateBuilder.new("ls")
-  .argument("-la")
-  .preopen_directory(".")
-  .finalize
-
-# Instantiate with WASI imports
-import_object = wasi_env.generate_import_object(store, module_)
-instance = Wasmer::Instance.new(module_, import_object)
-
-# Run
-wasi_env.start(instance)
-```
-
-### With shell execution
-
-```ruby
-require 'coreutils_wasm'
-
-# Simple shell execution with wasmer
-def run_coreutils(command, *args)
-  wasm = CoreutilsWasm.wasm_path
-  `wasmer run #{wasm} -- #{command} #{args.join(' ')}`
+# BinaryNotFound -- raised when running before downloading
+begin
+  CoreutilsWasm.run('ls')
+rescue CoreutilsWasm::BinaryNotFound => e
+  puts "Binary missing: #{e.message}"
+  CoreutilsWasm.download_to_binary_path!
+  retry
 end
 
-puts run_coreutils('ls', '-la')
-puts run_coreutils('cat', 'Gemfile')
+# ExecutionError -- raised on non-zero exit code
+begin
+  CoreutilsWasm.run('cat', 'nonexistent_file', wasm_dir: '.')
+rescue CoreutilsWasm::ExecutionError => e
+  puts "Command failed: #{e.message}"
+end
+```
+
+All errors inherit from `CoreutilsWasm::Error`:
+
+```
+StandardError
+  └── CoreutilsWasm::Error
+        ├── CoreutilsWasm::BinaryNotFound
+        └── CoreutilsWasm::ExecutionError
 ```
 
 ## Available Commands
@@ -128,7 +162,18 @@ This binary includes all GNU coreutils commands:
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests.
+After checking out the repo, install dependencies:
+
+```bash
+cd ruby-gem
+bundle install
+```
+
+Run the test suite:
+
+```bash
+bundle exec rake test
+```
 
 ## Contributing
 
