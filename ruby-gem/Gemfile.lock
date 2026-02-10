@@ -1,0 +1,23 @@
+PATH
+  remote: .
+  specs:
+    coreutils-wasm (1.2.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    minitest (5.27.0)
+    rake (13.3.1)
+
+PLATFORMS
+  arm64-darwin-25
+  ruby
+
+DEPENDENCIES
+  bundler (~> 2.0)
+  coreutils-wasm!
+  minitest (~> 5.0)
+  rake (~> 13.0)
+
+BUNDLED WITH
+   2.6.7
