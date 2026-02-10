@@ -15,11 +15,12 @@ class RunnerTest < Minitest::Test
     end
   end
 
-  def test_builds_correct_command_array
+  def test_builds_correct_command_array_for_wasmer
     Dir.mktmpdir do |dir|
       binary = File.join(dir, 'coreutils.wasm')
       File.write(binary, 'fake')
       CoreutilsWasm.binary_path = binary
+      # default runtime is wasmer
 
       captured_cmd = nil
       fake_capture3 = lambda do |*cmd|
@@ -33,7 +34,30 @@ class RunnerTest < Minitest::Test
         CoreutilsWasm::Runner.run('ls', '-la')
       end
 
-      assert_equal ['wasmtime', 'run', '--dir', '.', binary, 'ls', '-la'], captured_cmd
+      assert_equal ['wasmer', 'run', '--volume', File.expand_path('.'), binary, '--', 'ls', '-la'], captured_cmd
+    end
+  end
+
+  def test_builds_correct_command_array_for_wasmtime
+    Dir.mktmpdir do |dir|
+      binary = File.join(dir, 'coreutils.wasm')
+      File.write(binary, 'fake')
+      CoreutilsWasm.binary_path = binary
+      CoreutilsWasm.runtime = 'wasmtime'
+
+      captured_cmd = nil
+      fake_capture3 = lambda do |*cmd|
+        captured_cmd = cmd
+        status = Minitest::Mock.new
+        status.expect(:success?, true)
+        ['output', '', status]
+      end
+
+      Open3.stub(:capture3, fake_capture3) do
+        CoreutilsWasm::Runner.run('ls', '-la')
+      end
+
+      assert_equal ['wasmtime', 'run', '--dir', File.expand_path('.'), '--', binary, 'ls', '-la'], captured_cmd
     end
   end
 
@@ -121,7 +145,8 @@ class RunnerTest < Minitest::Test
         CoreutilsWasm::Runner.run('ls')
       end
 
-      assert_equal '.', captured_cmd[3]
+      # wasmer uses --volume at index 2, value at index 3
+      assert_equal File.expand_path('.'), captured_cmd[3]
     end
   end
 end

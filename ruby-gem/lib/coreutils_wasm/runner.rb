@@ -10,13 +10,9 @@ module CoreutilsWasm
 
         raise CoreutilsWasm::BinaryNotFound, "WASM binary not found at #{binary}" unless File.exist?(binary)
 
-        cmd = [
-          CoreutilsWasm.runtime,
-          'run',
-          '--dir', wasm_dir,
-          binary,
-          *args
-        ]
+        expanded_dir = File.expand_path(wasm_dir)
+
+        cmd = build_command(binary, expanded_dir, args)
 
         stdout, stderr, status = Open3.capture3(*cmd)
 
@@ -26,6 +22,32 @@ module CoreutilsWasm
         end
 
         { stdout: stdout, stderr: stderr, success: true }
+      end
+
+      private
+
+      def build_command(binary, expanded_dir, args)
+        runtime = CoreutilsWasm.runtime
+
+        if runtime.include?('wasmer')
+          [
+            runtime,
+            'run',
+            '--volume', expanded_dir,
+            binary,
+            '--',
+            *args
+          ]
+        else
+          [
+            runtime,
+            'run',
+            '--dir', expanded_dir,
+            '--',
+            binary,
+            *args
+          ]
+        end
       end
     end
   end

@@ -39,13 +39,14 @@ class IntegrationTest < Minitest::Test
         assert result[:success]
       end
 
-      # 6. Verify command shape
+      # 6. Verify command shape (wazero is not wasmer, so uses wasmtime-style --dir)
       assert_equal 'wazero', captured_cmd[0]
       assert_equal 'run', captured_cmd[1]
       assert_equal '--dir', captured_cmd[2]
-      assert_equal dir, captured_cmd[3]
-      assert_equal target, captured_cmd[4]
-      assert_equal ['ls', '-la'], captured_cmd[5..]
+      assert_equal File.expand_path(dir), captured_cmd[3]
+      assert_equal '--', captured_cmd[4]
+      assert_equal target, captured_cmd[5]
+      assert_equal ['ls', '-la'], captured_cmd[6..]
     end
   end
 
