@@ -20,7 +20,7 @@ module CoreutilsWasm
     end
 
     def runtime
-      @runtime || 'wasmtime'
+      @runtime || 'wasmer'
     end
 
     def download_to_binary_path!

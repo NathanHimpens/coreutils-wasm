@@ -14,8 +14,8 @@ class CoreutilsWasmTest < Minitest::Test
     assert_equal '/tmp/custom.wasm', CoreutilsWasm.binary_path
   end
 
-  def test_runtime_returns_wasmtime_by_default
-    assert_equal 'wasmtime', CoreutilsWasm.runtime
+  def test_runtime_returns_wasmer_by_default
+    assert_equal 'wasmer', CoreutilsWasm.runtime
   end
 
   def test_runtime_setter_overrides_runtime
